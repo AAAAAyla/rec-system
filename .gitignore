@@ -31,3 +31,23 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# === Java / Spring Boot ===
+target/
+*.class
+.idea/
+*.iml
+
+# === 前端 Vue ===
+node_modules/
+dist/
+.env.local
+
+# === Python / 数据集 (这是今天最关键的！) ===
+*.gz
+*.json.gz
+*.csv
+__pycache__/
+
+# === 杂项 ===
+.DS_Store

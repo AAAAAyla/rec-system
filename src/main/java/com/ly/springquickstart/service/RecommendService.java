@@ -42,4 +42,5 @@ public class RecommendService {
         stringRedisTemplate.opsForValue().set(key, itemIds, 24, TimeUnit.HOURS);
         System.out.println("====== 成功将算法推荐结果写入 Redis！用户ID: " + userId + " ======");
     }
+
 }

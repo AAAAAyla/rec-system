@@ -1,6 +1,7 @@
 package com.ly.springquickstart.interceptor;
 
 import com.ly.springquickstart.utils.JwtUtils;
+import com.ly.springquickstart.utils.ThreadLocalUtil; // 引入刚刚写的储物柜工具
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
@@ -11,21 +12,28 @@ import java.util.Map;
 @Component
 public class LoginInterceptor implements HandlerInterceptor {
 
+    // 这个方法在请求到达 Controller 之前执行（查票）
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        // 1. 从请求头（Header）中拿到那个叫 Authorization 的手环（Token）
         String token = request.getHeader("Authorization");
-
         try {
-            // 2. 把手环扔给我们的机器去验真伪
+            // 1. 验证手环
             Map<String, Object> claims = JwtUtils.parseToken(token);
 
-            // 3. 验真成功，保安放行！(return true)
-            return true;
+            // 2. ⭐ 新增逻辑：验证通过后，把从手环里解析出的用户信息，存入 ThreadLocal（储物柜）
+            ThreadLocalUtil.set(claims);
+
+            return true; // 放行
         } catch (Exception e) {
-            // 4. 如果手环是假的、过期的，或者压根没带手环，就会走到这里
-            response.setStatus(401); // 401 在 HTTP 状态码里代表“未认证/未登录”
-            return false; // 保安无情拦截！
+            response.setStatus(401);
+            return false; // 拦截
         }
+    }
+
+    // 这个方法在整个请求处理完毕，准备返回给前端之后执行（善后工作）
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        // ⭐ 新增逻辑：必须清空当前线程的储物柜，防止内存泄漏！
+        ThreadLocalUtil.remove();
     }
 }
