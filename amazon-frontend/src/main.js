@@ -8,9 +8,10 @@ import { createRouter, createWebHistory } from 'vue-router'
 import axios from 'axios'
 
 // 1. 导入页面组件
-import Home from './Home.vue'
-import Login from './Login.vue'
-import ProductDetail from './ProductDetail.vue'
+import Home from './views/buyer/Home.vue'
+import Login from './views/Login.vue'
+import ProductDetail from './views/buyer/ProductDetail.vue'
+import Cart from './views/buyer/Cart.vue' // 新增购物车组件
 
 // 2. 配置路由
 const router = createRouter({
@@ -19,7 +20,8 @@ const router = createRouter({
         { path: '/', redirect: '/home' },
         { path: '/login', component: Login },
         { path: '/home', component: Home },
-        { path: '/product/:id', name: 'ProductDetail', component: ProductDetail }
+        { path: '/product/:id', name: 'ProductDetail', component: ProductDetail },
+        { path: '/cart', component: Cart } // 新增购物车路由
     ]
 })
 

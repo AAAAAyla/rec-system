@@ -8,7 +8,7 @@
 
       <el-row :gutter="20" v-if="recommendList.length > 0">
         <el-col v-for="item in recommendList" :key="item.id" :xs="12" :sm="8" :md="6" :lg="4">
-          <el-card class="product-card" :body-style="{ padding: '10px' }">
+          <el-card class="product-card" :body-style="{ padding: '10px' }" @click="goToDetail(item)">
             <div class="image-container">
               <img :src="item.image_url" class="product-image" @error="handleImageError" />
             </div>
@@ -16,8 +16,8 @@
               <div class="product-title">{{ item.title }}</div>
               <el-rate v-model="item.mockRate" disabled show-score text-color="#ff9900" />
               <div class="price">
-                <span class="currency">$</span>
-                <span class="amount">{{ (Math.random() * 100).toFixed(2) }}</span>
+                <span class="currency">￥</span>
+                <span class="amount">{{ item.price || (Math.random() * 100).toFixed(2) }}</span>
               </div>
             </div>
           </el-card>
@@ -53,12 +53,11 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, StarFilled, Goods, ChatDotRound } from '@element-plus/icons-vue'
+import { StarFilled, ChatDotRound } from '@element-plus/icons-vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 const recommendList = ref([])
-const searchQuery = ref('')
 const router = useRouter()
 
 const chatVisible = ref(false)
@@ -67,25 +66,28 @@ const userInput = ref('')
 const chatHistory = ref([{ role: 'ai', content: '您好！我是您的专属购物助手，想找点什么？' }])
 const chatWindow = ref(null)
 
-const handleLogout = () => {
-  localStorage.removeItem('token')
-  ElMessage.success('已安全退出')
-  router.push('/login')
-}
-
 const loadRecommendations = async () => {
   try {
     const res = await axios.get('http://localhost:8080/items/recommend')
     if (res.data.code === 1 && res.data.data && Array.isArray(res.data.data.rows)) {
       recommendList.value = res.data.data.rows.map(item => ({
         ...item,
-        mockRate: 4.5 + Math.random() * 0.5
+        mockRate: 4.5 + Math.random() * 0.5,
+        price: (Math.random() * 100 + 10).toFixed(2) // 补充价格字段
       }))
     }
   } catch (err) {
     ElMessage.error('获取推荐列表失败，手环可能已过期')
-    handleLogout()
+    localStorage.removeItem('token')
+    router.push('/login')
   }
+}
+
+const goToDetail = (item) => {
+  router.push({
+    path: `/product/${item.id}`,
+    query: { title: item.title, price: item.price, image: item.image_url }
+  })
 }
 
 const handleImageError = (e) => {
@@ -129,11 +131,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.amazon-header { background-color: #131921; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; }
-.logo { color: white; font-weight: bold; font-size: 24px; display: flex; align-items: center; gap: 8px; }
-.search-input { width: 50%; max-width: 600px; }
-.user-actions { display: flex; align-items: center; gap: 15px; }
-.user-badge { color: #f0c14b; font-weight: bold; font-size: 14px;}
 .section-header { font-size: 22px; font-weight: bold; margin: 20px 0; display: flex; align-items: center; gap: 8px; color: #111; }
 .product-card { margin-bottom: 20px; height: 360px; cursor: pointer; transition: 0.3s; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
 .product-card:hover { transform: translateY(-5px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
