@@ -19,12 +19,10 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(loginInterceptor)
                 // 增加针对 Knife4j 和 Swagger 资源的放行
                 .excludePathPatterns(
-                        "/users/login",
-                        "/users/register",
                         "/doc.html",            // Knife4j 页面
-                        "/v3/api-docs/**",      // OpenAPI 结构化数据
-                        "/webjars/**",           // 前端静态资源
-                        "/items/**"
+                        "/v3/api-docs/**",      // OpenAPI 结构化数
+                        "/login",
+                        "/register", "/error", "/ai/chat"
                 );
     }
     /**

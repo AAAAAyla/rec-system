@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import { createPinia } from 'pinia' // 导入 Pinia
 import App from './App.vue'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
@@ -6,20 +7,23 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import axios from 'axios'
 
-// 导入刚才新建的两个页面
+// 1. 导入页面组件
 import Home from './Home.vue'
 import Login from './Login.vue'
+import ProductDetail from './ProductDetail.vue'
 
-// ================= 1. 配置路由 =================
+// 2. 配置路由
 const router = createRouter({
     history: createWebHistory(),
     routes: [
+        { path: '/', redirect: '/home' },
         { path: '/login', component: Login },
-        { path: '/home', component: Home }
+        { path: '/home', component: Home },
+        { path: '/product/:id', name: 'ProductDetail', component: ProductDetail }
     ]
 })
 
-// 路由守卫：如果没手环（未登录），强制去登录页
+// 路由守卫：登录校验
 router.beforeEach((to, from, next) => {
     const token = localStorage.getItem('token')
     if (to.path !== '/login' && !token) {
@@ -29,8 +33,7 @@ router.beforeEach((to, from, next) => {
     }
 })
 
-// ================= 2. 配置 Axios 全局拦截器 =================
-// 每次发请求前，自动把手环塞进 Header
+// 3. 配置 Axios 拦截器
 axios.interceptors.request.use(config => {
     const token = localStorage.getItem('token')
     if (token) {
@@ -39,7 +42,6 @@ axios.interceptors.request.use(config => {
     return config
 })
 
-// 如果后端报错说手环过期了 (401)，自动退回登录页
 axios.interceptors.response.use(res => res, error => {
     if (error.response && error.response.status === 401) {
         localStorage.removeItem('token')
@@ -48,13 +50,16 @@ axios.interceptors.response.use(res => res, error => {
     return Promise.reject(error)
 })
 
-// ================= 3. 挂载 Vue =================
+// 4. 创建并挂载应用
 const app = createApp(App)
 
+// 注册所有图标
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
     app.component(key, component)
 }
 
+app.use(createPinia()) // 激活 Pinia
 app.use(ElementPlus)
-app.use(router) // 启用路由
+app.use(router)
+
 app.mount('#app')

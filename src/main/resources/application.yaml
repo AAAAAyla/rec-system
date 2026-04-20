@@ -8,6 +8,18 @@ spring:
     redis:
       host: localhost
       port: 6379
+  ai:
+    zhipuai:
+      # 替换为你的智谱 API Key
+      api-key: 7b3f6079db554acfb3493ecb5d0f5e76.niD8J5GK4hLgCVnD
+      chat:
+        options:
+          # 使用智谱的免费聊天模型
+          model: glm-4-flash
+      embedding:
+        options:
+          # 使用智谱的向量化模型 (将文字变成数字)
+          model: embedding-2
 
 mybatis:
   configuration:

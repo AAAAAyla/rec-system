@@ -1,7 +1,7 @@
 package com.ly.springquickstart.interceptor;
 
 import com.ly.springquickstart.utils.JwtUtils;
-import com.ly.springquickstart.utils.ThreadLocalUtil; // 引入刚刚写的储物柜工具
+import com.ly.springquickstart.utils.ThreadLocalUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
@@ -12,28 +12,32 @@ import java.util.Map;
 @Component
 public class LoginInterceptor implements HandlerInterceptor {
 
-    // 这个方法在请求到达 Controller 之前执行（查票）
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        // 1. 直接放行浏览器的 OPTIONS 预检跨域请求
+        if ("OPTIONS".equals(request.getMethod())) {
+            return true;
+        }
+
+        // 2. 获取请求头中的 token
         String token = request.getHeader("Authorization");
+
         try {
-            // 1. 验证手环
+            // 3. 解析 token
             Map<String, Object> claims = JwtUtils.parseToken(token);
-
-            // 2. ⭐ 新增逻辑：验证通过后，把从手环里解析出的用户信息，存入 ThreadLocal（储物柜）
+            // 4. 把解析后的数据存入 ThreadLocal
             ThreadLocalUtil.set(claims);
-
-            return true; // 放行
+            return true;
         } catch (Exception e) {
+            // 5. 解析失败，返回 401 状态码
             response.setStatus(401);
-            return false; // 拦截
+            return false;
         }
     }
 
-    // 这个方法在整个请求处理完毕，准备返回给前端之后执行（善后工作）
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
-        // ⭐ 新增逻辑：必须清空当前线程的储物柜，防止内存泄漏！
+        // 请求完成后清除 ThreadLocal，防止内存泄漏
         ThreadLocalUtil.remove();
     }
 }

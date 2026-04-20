@@ -1,19 +1,5 @@
 <template>
   <div class="common-layout">
-    <el-header class="amazon-header">
-      <div class="logo">
-        <el-icon><Goods /></el-icon> AmazonRec
-      </div>
-      <el-input v-model="searchQuery" placeholder="搜索商品..." class="search-input">
-        <template #append>
-          <el-button :icon="Search" />
-        </template>
-      </el-input>
-      <div class="user-actions">
-        <span class="user-badge">欢迎回来！</span>
-        <el-button type="danger" size="small" plain @click="handleLogout">退出登录</el-button>
-      </div>
-    </el-header>
 
     <el-main>
       <div class="section-header">
