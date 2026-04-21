@@ -69,17 +69,31 @@ const chatWindow = ref(null)
 const loadRecommendations = async () => {
   try {
     const res = await axios.get('http://localhost:8080/items/recommend')
+    console.log('推荐接口返回:', res.data)
     if (res.data.code === 1 && res.data.data && Array.isArray(res.data.data.rows)) {
       recommendList.value = res.data.data.rows.map(item => ({
         ...item,
         mockRate: 4.5 + Math.random() * 0.5,
-        price: (Math.random() * 100 + 10).toFixed(2) // 补充价格字段
+        price: item.price || (Math.random() * 100 + 10).toFixed(2)
       }))
+    } else {
+      console.warn('推荐数据格式异常:', res.data)
+      ElMessage.warning(res.data.msg || '暂无推荐数据')
+      recommendList.value = []
     }
   } catch (err) {
-    ElMessage.error('获取推荐列表失败，手环可能已过期')
-    localStorage.removeItem('token')
-    router.push('/login')
+    console.error('加载推荐列表失败:', err)
+    if (err.response?.status === 401) {
+      ElMessage.warning('请先登录')
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      router.push('/login')
+    } else if (err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED') {
+      ElMessage.error('无法连接到服务器，请检查后端是否启动')
+    } else {
+      ElMessage.error('获取推荐列表失败：' + (err.message || '未知错误'))
+    }
+    recommendList.value = []
   }
 }
 
@@ -91,7 +105,9 @@ const goToDetail = (item) => {
 }
 
 const handleImageError = (e) => {
-  e.target.src = 'https://via.placeholder.com/150?text=No+Image'
+  if (e && e.target) {
+    e.target.src = 'https://via.placeholder.com/150?text=No+Image'
+  }
 }
 
 const scrollToBottom = () => {

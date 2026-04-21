@@ -109,4 +109,8 @@ public class ItemService {
     public void incrSales(Long itemId, int qty) {
         itemMapper.incrSales(itemId, qty);
     }
+
+    public void restoreStock(Long skuId, int qty) {
+        itemMapper.restoreSkuStock(skuId, qty);
+    }
 }

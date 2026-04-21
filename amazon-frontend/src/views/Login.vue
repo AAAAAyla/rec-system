@@ -109,7 +109,8 @@ import { useRouter } from 'vue-router'
 import { User, Lock, Goods, CircleCheck } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
-
+import { useUserStore } from '../store/userStore'
+const userStore = useUserStore()
 // --- 变量定义 ---
 const router = useRouter()
 const activeTab = ref('login')
@@ -168,7 +169,8 @@ const handleLogin = async (formEl) => {
       try {
         const res = await axios.post('http://localhost:8080/login', loginForm)
         if (res.data.code === 1) {
-          localStorage.setItem('token', res.data.data)
+          const { token, userInfo } = res.data.data
+          userStore.setLogin(token, userInfo)
           ElMessage.success('登录成功')
           router.push('/home')
         } else {

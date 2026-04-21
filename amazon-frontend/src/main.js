@@ -4,36 +4,8 @@ import App from './App.vue'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-import { createRouter, createWebHistory } from 'vue-router'
 import axios from 'axios'
-
-// 1. 导入页面组件
-import Home from './views/buyer/Home.vue'
-import Login from './views/Login.vue'
-import ProductDetail from './views/buyer/ProductDetail.vue'
-import Cart from './views/buyer/Cart.vue' // 新增购物车组件
-
-// 2. 配置路由
-const router = createRouter({
-    history: createWebHistory(),
-    routes: [
-        { path: '/', redirect: '/home' },
-        { path: '/login', component: Login },
-        { path: '/home', component: Home },
-        { path: '/product/:id', name: 'ProductDetail', component: ProductDetail },
-        { path: '/cart', component: Cart } // 新增购物车路由
-    ]
-})
-
-// 路由守卫：登录校验
-router.beforeEach((to, from, next) => {
-    const token = localStorage.getItem('token')
-    if (to.path !== '/login' && !token) {
-        next('/login')
-    } else {
-        next()
-    }
-})
+import router from './router' // 导入路由配置
 
 // 3. 配置 Axios 拦截器
 axios.interceptors.request.use(config => {
