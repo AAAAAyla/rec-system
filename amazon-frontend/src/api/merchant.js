@@ -20,6 +20,10 @@ export const updateShopInfo = (data) =>
 
 // ── 管理员审核（后台用） ──────────────────────────────
 
+/** 查看商家列表（管理员）status: 0=待审核 1=通过 2=拒绝 */
+export const listMerchants = (status = 0, pageNum = 1, pageSize = 10) =>
+    axios.get(`${BASE}/merchant/list`, { params: { status, pageNum, pageSize } })
+
 /** 审核商家：status 1=通过 2=拒绝 */
 export const auditMerchant = (merchantId, status, rejectReason = '') =>
     axios.put(`${BASE}/merchant/audit/${merchantId}`, { status, rejectReason })

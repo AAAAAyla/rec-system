@@ -40,6 +40,17 @@ public class MerchantController {
     }
 
     /**
+     * 管理员查看商家申请列表
+     * status: 0=待审核 1=正常 2=拒绝 3=封禁
+     */
+    @GetMapping("/list")
+    public Result list(@RequestParam(defaultValue = "0") int status,
+                       @RequestParam(defaultValue = "1")  int pageNum,
+                       @RequestParam(defaultValue = "10") int pageSize) {
+        return Result.success(merchantService.listByStatus(status, pageNum, pageSize));
+    }
+
+    /**
      * 管理员审核接口
      * body: { "status": 1, "rejectReason": "" }
      */

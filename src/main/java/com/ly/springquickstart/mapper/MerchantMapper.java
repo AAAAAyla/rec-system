@@ -19,6 +19,9 @@ public interface MerchantMapper {
                                 @Param("offset") int offset,
                                 @Param("size") int size);
 
+    @Select("SELECT COUNT(*) FROM merchants WHERE status = #{status}")
+    int countByStatus(int status);
+
     @Insert("""
         INSERT INTO merchants(user_id, shop_name, shop_desc, avatar, license_url, contact_phone, status)
         VALUES(#{userId}, #{shopName}, #{shopDesc}, #{avatar}, #{licenseUrl}, #{contactPhone}, 0)

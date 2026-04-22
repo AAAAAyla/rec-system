@@ -1,37 +1,48 @@
 package com.ly.springquickstart.exception;
 
 import com.ly.springquickstart.pojo.Result;
+import org.springframework.dao.DataAccessException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-/**
- * 全局异常处理器（相当于系统的“底层保安”）
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /**
-     * 专门拦截我们刚才遇到的那个“参数类型不匹配”异常
-     */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public Result handleTypeMismatchException(MethodArgumentTypeMismatchException e) {
-        // 在控制台悄悄记录一下，方便我们排查
-        System.out.println("拦截到参数类型错误: " + e.getMessage());
-
-        // 给前端返回优雅的 JSON 提示
-        return Result.error("参数格式错误，请检查请求地址或参数类型！");
+        System.out.println("参数类型错误: " + e.getMessage());
+        return Result.error("参数格式错误，请检查请求地址或参数类型");
     }
 
     /**
-     * 终极兜底：拦截所有不可预知的 Exception（比如空指针、数据库连不上等）
+     * 业务异常：直接将 message 返回给前端（如"库存不足"、"订单不存在"等）
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public Result handleRuntimeException(RuntimeException e) {
+        System.out.println("[业务异常] " + e.getMessage());
+        return Result.error(e.getMessage());
+    }
+
+    /**
+     * 数据库访问异常：给出提示，告知需要执行初始化脚本
+     */
+    @ExceptionHandler(DataAccessException.class)
+    public Result handleDataAccessException(DataAccessException e) {
+        e.printStackTrace();
+        String msg = e.getMostSpecificCause().getMessage();
+        if (msg != null && msg.contains("doesn't exist")) {
+            return Result.error("数据库表不存在，请先执行 db_migration.sql 初始化脚本");
+        }
+        return Result.error("数据库操作失败：" + msg);
+    }
+
+    /**
+     * 兜底：未预料到的系统异常
      */
     @ExceptionHandler(Exception.class)
     public Result handleException(Exception e) {
-        // 打印完整的错误堆栈到控制台，方便咱们修 Bug
         e.printStackTrace();
-
-        // 给用户返回一个甩锅式的友好提示，绝不暴露代码细节
-        return Result.error("系统繁忙，请稍后再试！");
+        return Result.error("系统繁忙，请稍后再试");
     }
 }

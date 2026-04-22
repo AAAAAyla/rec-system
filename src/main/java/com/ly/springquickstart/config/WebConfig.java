@@ -20,10 +20,10 @@ public class WebConfig implements WebMvcConfigurer {
                         "/doc.html", "/v3/api-docs/**",   // Knife4j
                         "/login", "/register", "/error",
                         "/ai/chat",
-                        "/items/search",       // 商品搜索公开
-                        "/items/{id}",         // 商品详情公开
-                        "/categories/tree"     // 分类树公开
-
+                        "/items/search",        // 商品搜索公开
+                        "/items/{id}",          // 商品详情公开
+                        "/categories/tree",     // 分类树公开
+                        "/reviews/items/**"     // 商品评价列表公开
                 );
     }
 

@@ -79,9 +79,17 @@ const activeMenu = computed(() => route.path)
 onMounted(async () => {
   try {
     const { data: res } = await getMyMerchantInfo()
-    if (res.code === 1) merchantInfo.value = res.data
-  } catch (e) {
-    // 未认证商家，路由守卫会跳转，这里静默处理
+    if (res.code === 1 && res.data) {
+      merchantInfo.value = res.data
+      // 商家未审核通过，跳回申请页
+      if (res.data.status !== 1) {
+        router.push('/merchant-apply')
+      }
+    } else {
+      router.push('/merchant-apply')
+    }
+  } catch {
+    router.push('/merchant-apply')
   }
 })
 </script>

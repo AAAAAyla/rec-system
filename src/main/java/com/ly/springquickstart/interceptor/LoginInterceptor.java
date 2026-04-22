@@ -19,8 +19,11 @@ public class LoginInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 2. 获取请求头中的 token
+        // 2. 获取请求头中的 token（兼容 Bearer <token> 和裸 token 两种格式）
         String token = request.getHeader("Authorization");
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
+        }
 
         try {
             // 3. 解析 token

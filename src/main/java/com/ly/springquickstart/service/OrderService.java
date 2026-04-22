@@ -67,14 +67,34 @@ public class OrderService {
             String imageUrl = (String) cartItem.get("imageUrl");
             String specJson = (String) cartItem.get("specJson");
 
-            // 查 SKU 价格
-            ItemSku sku = itemMapper.findSkuById(skuId);
-            if (sku == null) throw new RuntimeException("SKU 不存在：" + skuId);
+            // 查 SKU 价格（兼容无 SKU 商品）
+            ItemSku sku;
+            if (skuId != null) {
+                sku = itemMapper.findSkuById(skuId);
+                if (sku == null) throw new RuntimeException("SKU 不存在：" + skuId);
+            } else {
+                // 没有指定 SKU，尝试取商品第一个在售 SKU
+                List<ItemSku> availableSkus = itemMapper.findSkusByItemId(itemId);
+                if (!availableSkus.isEmpty()) {
+                    sku   = availableSkus.get(0);
+                    skuId = sku.getId();
+                } else {
+                    // 商品未配置 SKU，用商品主表价格/库存
+                    Item fallbackItem = itemMapper.findById(itemId);
+                    sku = new ItemSku();
+                    sku.setId(null);
+                    sku.setPrice(fallbackItem.getPrice() != null ? fallbackItem.getPrice() : BigDecimal.ZERO);
+                    sku.setStock(fallbackItem.getStock() != null ? fallbackItem.getStock() : 9999);
+                }
+            }
+
             if (sku.getStock() < quantity) throw new RuntimeException("库存不足：" + title);
 
-            // 原子扣减（UPDATE ... WHERE stock >= qty）
-            int affected = itemMapper.deductSkuStock(skuId, quantity);
-            if (affected == 0) throw new RuntimeException("库存不足（并发）：" + title);
+            // 有 SKU 才做原子扣减
+            if (skuId != null) {
+                int affected = itemMapper.deductSkuStock(skuId, quantity);
+                if (affected == 0) throw new RuntimeException("库存不足（并发）：" + title);
+            }
 
             // 查商品获取 merchantId（同一订单要求同一商家，跨商家需拆单）
             Item item = itemMapper.findById(itemId);
@@ -230,6 +250,55 @@ public class OrderService {
         shipmentMapper.insertTrack(track);
     }
 
+    // ── 物流追踪 ──────────────────────────────────────
+
+    /**
+     * 商家手动追加物流节点
+     */
+    @Transactional
+    public void addTrack(Long merchantId, Long orderId, String location, String description) {
+        Order order = orderMapper.findById(orderId);
+        if (order == null || !order.getMerchantId().equals(merchantId))
+            throw new RuntimeException("订单不存在");
+        if (order.getStatus() != 2)
+            throw new RuntimeException("订单尚未发货，无法追加物流节点");
+
+        Shipment shipment = shipmentMapper.findByOrderId(orderId);
+        if (shipment == null) throw new RuntimeException("物流记录不存在");
+
+        ShipmentTrack track = new ShipmentTrack();
+        track.setShipmentId(shipment.getId());
+        track.setLocation(location);
+        track.setDescription(description);
+        track.setTrackTime(LocalDateTime.now());
+        shipmentMapper.insertTrack(track);
+    }
+
+    /**
+     * 买家查询物流详情（快递公司 + 单号 + 全部节点）
+     */
+    public Map<String, Object> getLogistics(Long userId, Long orderId) {
+        Order order = orderMapper.findById(orderId);
+        if (order == null || !order.getUserId().equals(userId))
+            throw new RuntimeException("订单不存在");
+
+        Shipment shipment = shipmentMapper.findByOrderId(orderId);
+        if (shipment == null) {
+            throw new RuntimeException("该订单暂无物流信息");
+        }
+        List<ShipmentTrack> tracks = shipmentMapper.findTracks(shipment.getId());
+        shipment.setTracks(tracks);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("orderNo", order.getOrderNo());
+        result.put("orderStatus", order.getStatus());
+        result.put("expressCompany", shipment.getExpressCompany());
+        result.put("trackingNo", shipment.getTrackingNo());
+        result.put("shipTime", shipment.getShipTime());
+        result.put("tracks", tracks);
+        return result;
+    }
+
     /** 商家申请退款同意（5→6） */
     @Transactional
     public void agreeRefund(Long merchantId, Long orderId) {
@@ -259,13 +328,21 @@ public class OrderService {
      * 实际项目用 Redisson DelayQueue 或 Spring @Scheduled 扫库
      * MVP 用 @Scheduled 每分钟扫一次待付款订单
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void autoCancelExpired() {
-        // 扫描30分钟前还未付款的订单
-        // 简单实现：直接查库（Redis key 已过期即找不到，兜底用DB）
-        // 生产环境应用 Redisson DelayQueue，此处用定时扫库即可
-        System.out.println("[定时任务] 扫描超时未付款订单...");
-        // 实现见 OrderScheduler.java
+        List<Order> expired = orderMapper.findExpiredUnpaid(ORDER_TTL_MINUTES);
+        for (Order order : expired) {
+            try {
+                int rows = orderMapper.cancel(order.getId(), 0, "超时未付款，系统自动取消");
+                if (rows > 0) {
+                    rollbackStock(order.getId());
+                    redisTemplate.delete(ORDER_EXPIRE_KEY + order.getOrderNo());
+                    System.out.println("[定时任务] 已取消超时订单: " + order.getOrderNo());
+                }
+            } catch (Exception e) {
+                System.err.println("[定时任务] 取消订单异常: " + order.getOrderNo() + " - " + e.getMessage());
+            }
+        }
     }
 
     // ── 私有工具 ──────────────────────────────────────
@@ -273,8 +350,9 @@ public class OrderService {
     private void rollbackStock(Long orderId) {
         List<OrderItem> items = orderMapper.findItemsByOrderId(orderId);
         for (OrderItem oi : items) {
-            // UPDATE item_skus SET stock = stock + qty WHERE id = skuId
-            itemMapper.restoreSkuStock(oi.getSkuId(), oi.getQuantity());
+            if (oi.getSkuId() != null) {
+                itemMapper.restoreSkuStock(oi.getSkuId(), oi.getQuantity());
+            }
         }
     }
 

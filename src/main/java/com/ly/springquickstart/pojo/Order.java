@@ -31,6 +31,7 @@ public class Order {
     private List<OrderItem> orderItems;
     private Shipment shipment;
 
-    public void setItems(List<OrderItem> itemsByOrderId) {
+    public void setItems(List<OrderItem> items) {
+        this.orderItems = items;
     }
 }

@@ -23,16 +23,43 @@
           <el-button circle :icon="ShoppingCart" @click="router.push('/cart')" />
         </el-badge>
 
-        <el-button
-            v-if="userStore.user?.role === 1"
-            type="primary"
-            plain
-            @click="router.push('/merchant')"
-        >
-          商家后台
-        </el-button>
-
         <template v-if="userStore.token">
+          <!-- 我的订单 -->
+          <el-button text style="color:#f0c14b" @click="router.push('/orders')">我的订单</el-button>
+
+          <!-- 管理员入口 -->
+          <el-button
+              v-if="userStore.user?.role === 2"
+              type="danger"
+              plain
+              size="small"
+              @click="router.push('/admin/merchants')"
+          >
+            管理后台
+          </el-button>
+
+          <!-- 商家后台 -->
+          <el-button
+              v-if="userStore.user?.role === 1"
+              type="primary"
+              plain
+              size="small"
+              @click="router.push('/merchant')"
+          >
+            商家后台
+          </el-button>
+
+          <!-- 申请入驻（普通买家） -->
+          <el-button
+              v-if="userStore.user?.role === 0 || userStore.user?.role == null"
+              type="success"
+              plain
+              size="small"
+              @click="router.push('/merchant-apply')"
+          >
+            申请入驻
+          </el-button>
+
           <span class="username">{{ userStore.user?.username }}</span>
           <el-button text @click="logout">退出</el-button>
         </template>

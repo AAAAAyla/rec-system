@@ -1,35 +1,68 @@
 <template>
   <div class="detail-container">
     <el-page-header @back="goBack" title="返回商城" class="header">
-      <template #content>
-        <span class="text-large font-600 mr-3"> 商品详情 </span>
-      </template>
+      <template #content><span class="text-large font-600 mr-3">商品详情</span></template>
     </el-page-header>
 
-    <el-row :gutter="40" class="product-main">
+    <!-- 骨架屏 -->
+    <div v-if="loading" class="skeleton-wrap">
+      <el-skeleton :rows="8" animated />
+    </div>
+
+    <el-row v-else-if="item" :gutter="40" class="product-main">
+      <!-- 左：图片 -->
       <el-col :xs="24" :md="10">
         <div class="image-box">
-          <img v-if="productData.image" :src="productData.image" class="detail-image" @error="handleImageError" />
-          <div v-else class="mock-img-wrapper">
-            <el-icon class="mock-img-icon"><Goods /></el-icon>
-            <div class="img-text">商品 ID: {{ productId }}</div>
-          </div>
+          <img
+            :src="currentImage"
+            class="detail-image"
+            @error="handleImageError"
+          />
         </div>
       </el-col>
 
+      <!-- 右：信息 -->
       <el-col :xs="24" :md="14">
-        <h1 class="product-title">{{ productData.title || 'AI 推荐精选商品' }}</h1>
+        <h1 class="product-title">{{ item.title }}</h1>
+
         <div class="product-price">
           <span class="currency">￥</span>
-          <span class="amount">{{ productData.price || '99.00' }}</span>
+          <span class="amount">{{ currentPrice }}</span>
         </div>
 
-        <p class="product-desc">
-          这是一件由 AmazonRec 智能体通过算法和知识库为您精准召回的推荐商品。具备高品质保证，支持七天无理由退换。
-        </p>
+        <!-- SKU 规格选择（有多个 SKU 时显示） -->
+        <div v-if="item.skus && item.skus.length > 0" class="sku-section">
+          <div class="sku-label">规格：</div>
+          <div class="sku-options">
+            <el-button
+              v-for="sku in item.skus"
+              :key="sku.id"
+              :type="selectedSku?.id === sku.id ? 'primary' : 'default'"
+              size="small"
+              style="margin: 4px"
+              @click="selectedSku = sku"
+            >
+              {{ formatSpec(sku.specJson) || '默认规格' }}
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 库存 -->
+        <div class="stock-info" v-if="selectedSku">
+          库存：<span :style="{ color: selectedSku.stock > 0 ? '#67c23a' : '#f56c6c' }">
+            {{ selectedSku.stock > 0 ? selectedSku.stock + ' 件' : '暂时缺货' }}
+          </span>
+        </div>
+
+        <p class="product-desc">{{ item.description || '商品暂无描述' }}</p>
 
         <div class="actions">
-          <el-input-number v-model="buyCount" :min="1" :max="99" style="margin-right: 15px;" />
+          <el-input-number
+            v-model="buyCount"
+            :min="1"
+            :max="selectedSku ? selectedSku.stock : 99"
+            style="margin-right: 15px;"
+          />
           <el-button type="warning" size="large" @click="handleAddToCart">
             <el-icon><ShoppingCart /></el-icon> 加入购物车
           </el-button>
@@ -39,74 +72,155 @@
         </div>
       </el-col>
     </el-row>
+
+    <el-empty v-else-if="!loading" description="商品不存在或已下架" />
+
+    <!-- 评价区 -->
+    <el-card v-if="item" class="review-card">
+      <template #header><b>商品评价</b></template>
+      <el-empty v-if="!reviews.length" description="暂无评价" :image-size="80" />
+      <div v-for="r in reviews" :key="r.id" class="review-item">
+        <div class="review-header">
+          <b>{{ r.username || '匿名用户' }}</b>
+          <el-rate v-model="r.score" disabled size="small" />
+          <span class="review-time">{{ r.createTime }}</span>
+        </div>
+        <div class="review-content">{{ r.content }}</div>
+      </div>
+    </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Goods, ShoppingCart } from '@element-plus/icons-vue'
+import { ShoppingCart } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import axios from 'axios'
 import { useCartStore } from '../../store/cartStore.js'
 
-const route = useRoute()
-const router = useRouter()
+const BASE = 'http://localhost:8080'
+
+const route     = useRoute()
+const router    = useRouter()
 const cartStore = useCartStore()
 
-const productId = ref('')
-const productData = ref({})
-const buyCount = ref(1)
+const item        = ref(null)
+const loading     = ref(true)
+const buyCount    = ref(1)
+const selectedSku = ref(null)
+const reviews     = ref([])
 
-onMounted(() => {
-  productId.value = route.params.id
-  productData.value = {
-    title: route.query.title,
-    price: route.query.price,
-    image: route.query.image
-  }
+// 当前展示的图片：优先选中 SKU 图，其次商品主图
+const currentImage = computed(() =>
+  selectedSku.value?.imageUrl || item.value?.imageUrl || ''
+)
+
+// 当前价格：有 SKU 取 SKU 价，否则取商品默认价
+const currentPrice = computed(() => {
+  if (selectedSku.value) return selectedSku.value.price
+  return item.value?.price || '—'
 })
 
-const goBack = () => {
-  router.push('/home')
+const formatSpec = (specJson) => {
+  if (!specJson) return ''
+  try {
+    const obj = JSON.parse(specJson)
+    return Object.entries(obj).map(([k, v]) => `${k}:${v}`).join(' ')
+  } catch {
+    return specJson
+  }
 }
 
 const handleImageError = (e) => {
-  e.target.src = 'https://via.placeholder.com/400?text=No+Image'
+  if (e?.target) e.target.src = 'https://via.placeholder.com/400?text=No+Image'
+}
+
+const goBack = () => router.push('/home')
+
+// 加载商品详情
+const loadItem = async () => {
+  loading.value = true
+  try {
+    const { data: res } = await axios.get(`${BASE}/items/${route.params.id}`)
+    if (res.code === 1) {
+      item.value = res.data
+      // 如果只有一个 SKU，默认选中
+      if (res.data.skus && res.data.skus.length === 1) {
+        selectedSku.value = res.data.skus[0]
+      } else if (res.data.skus && res.data.skus.length > 1) {
+        selectedSku.value = res.data.skus[0]
+      }
+    } else {
+      ElMessage.error(res.msg || '商品加载失败')
+    }
+  } catch (err) {
+    ElMessage.error('网络错误：' + (err.message || '未知'))
+  } finally {
+    loading.value = false
+  }
+}
+
+// 加载评价（失败不影响主流程）
+const loadReviews = async () => {
+  try {
+    const { data: res } = await axios.get(`${BASE}/reviews/items/${route.params.id}`, {
+      params: { pageNum: 1, pageSize: 5 }
+    })
+    if (res.code === 1) reviews.value = res.data.rows || []
+  } catch { /* 静默 */ }
 }
 
 const handleAddToCart = () => {
-  const item = {
-    id: productId.value,
-    title: productData.value.title || `精选商品-${productId.value}`,
-    price: parseFloat(productData.value.price || 99.00)
+  if (!item.value) return
+  const sku = selectedSku.value
+
+  const cartItem = {
+    itemId:   item.value.id,
+    skuId:    sku?.id || null,
+    title:    item.value.title,
+    imageUrl: sku?.imageUrl || item.value.imageUrl || '',
+    specJson: sku?.specJson || null,
+    price:    parseFloat(sku?.price ?? item.value.price ?? 0),
+    quantity: buyCount.value,
   }
 
-  // 支持加入多个数量
-  for(let i=0; i<buyCount.value; i++){
-    cartStore.addToCart(item)
-  }
-
-  ElMessage.success('成功加入购物车！')
+  cartStore.addToCart(cartItem)
+  ElMessage.success('已加入购物车')
 }
 
 const handleBuyNow = () => {
   handleAddToCart()
   router.push('/cart')
 }
+
+onMounted(() => {
+  loadItem()
+  loadReviews()
+})
 </script>
 
 <style scoped>
-.detail-container { max-width: 1200px; margin: 0 auto; padding: 20px; background: white; border-radius: 8px; margin-top: 20px;}
+.detail-container { max-width: 1200px; margin: 20px auto; padding: 20px; background: #fff; border-radius: 8px; }
 .header { padding-bottom: 20px; border-bottom: 1px solid #ebeef5; }
+.skeleton-wrap { padding: 40px; }
 .product-main { margin-top: 30px; }
-.image-box { background: #fff; height: 400px; display: flex; justify-content: center; align-items: center; border-radius: 8px; overflow: hidden; border: 1px solid #eee; }
+.image-box { background: #fff; height: 380px; display: flex; justify-content: center; align-items: center; border-radius: 8px; overflow: hidden; border: 1px solid #eee; }
 .detail-image { max-width: 100%; max-height: 100%; object-fit: contain; }
-.mock-img-wrapper { display: flex; flex-direction: column; align-items: center; color: #a8abb2; }
-.mock-img-icon { font-size: 80px; margin-bottom: 20px; }
-.product-title { font-size: 24px; color: #303133; margin-top: 0; line-height: 1.4; }
-.product-price { color: #B12704; margin: 20px 0; }
-.currency { font-size: 20px; font-weight: bold; }
-.amount { font-size: 36px; font-weight: bold; }
-.product-desc { color: #606266; line-height: 1.8; font-size: 15px; margin-bottom: 40px; padding: 15px; background: #f9f9f9; border-radius: 4px; }
-.actions { display: flex; align-items: center; margin-top: 20px; }
+.product-title { font-size: 22px; color: #303133; margin-top: 0; line-height: 1.5; }
+.product-price { color: #B12704; margin: 16px 0; }
+.currency { font-size: 18px; font-weight: bold; }
+.amount { font-size: 34px; font-weight: bold; }
+.sku-section { margin: 16px 0; }
+.sku-label { font-size: 14px; color: #666; margin-bottom: 8px; }
+.sku-options { display: flex; flex-wrap: wrap; gap: 4px; }
+.stock-info { font-size: 13px; color: #909399; margin-bottom: 12px; }
+.product-desc { color: #606266; line-height: 1.8; font-size: 14px; margin-bottom: 32px; padding: 12px; background: #f9f9f9; border-radius: 4px; }
+.actions { display: flex; align-items: center; margin-top: 20px; flex-wrap: wrap; gap: 8px; }
+.review-card { margin-top: 24px; }
+.review-item { padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
+.review-item:last-child { border-bottom: none; }
+.review-header { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.review-time { font-size: 12px; color: #bbb; margin-left: auto; }
+.review-content { font-size: 14px; color: #606266; padding-left: 4px; }
 </style>

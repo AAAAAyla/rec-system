@@ -27,41 +27,50 @@ public interface OrderMapper {
     @Select("SELECT * FROM orders WHERE order_no=#{orderNo}")
     Order findByOrderNo(String orderNo);
 
+    // 使用 <script> 标签包裹，是 MyBatis 注解模式下动态 SQL 的正确写法
     @Select("""
+        <script>
         SELECT * FROM orders WHERE user_id=#{userId}
         <if test='status != null'> AND status=#{status} </if>
         ORDER BY create_time DESC LIMIT #{offset}, #{size}
+        </script>
         """)
-    @Lang(org.apache.ibatis.scripting.xmltags.XMLLanguageDriver.class)
     List<Order> findByUser(@Param("userId") Long userId,
                            @Param("status") Integer status,
                            @Param("offset") int offset,
                            @Param("size") int size);
 
     @Select("""
+        <script>
         SELECT COUNT(*) FROM orders WHERE user_id=#{userId}
         <if test='status != null'> AND status=#{status} </if>
+        </script>
         """)
-    @Lang(org.apache.ibatis.scripting.xmltags.XMLLanguageDriver.class)
     int countByUser(@Param("userId") Long userId, @Param("status") Integer status);
 
     @Select("""
+        <script>
         SELECT * FROM orders WHERE merchant_id=#{merchantId}
         <if test='status != null'> AND status=#{status} </if>
         ORDER BY create_time DESC LIMIT #{offset}, #{size}
+        </script>
         """)
-    @Lang(org.apache.ibatis.scripting.xmltags.XMLLanguageDriver.class)
     List<Order> findByMerchant(@Param("merchantId") Long merchantId,
                                @Param("status") Integer status,
                                @Param("offset") int offset,
                                @Param("size") int size);
 
     @Select("""
+        <script>
         SELECT COUNT(*) FROM orders WHERE merchant_id=#{merchantId}
         <if test='status != null'> AND status=#{status} </if>
+        </script>
         """)
-    @Lang(org.apache.ibatis.scripting.xmltags.XMLLanguageDriver.class)
     int countByMerchant(@Param("merchantId") Long merchantId, @Param("status") Integer status);
+
+    /** 查询超时未付款订单 */
+    @Select("SELECT * FROM orders WHERE status=0 AND create_time < DATE_SUB(NOW(), INTERVAL #{minutes} MINUTE)")
+    List<Order> findExpiredUnpaid(@Param("minutes") long minutes);
 
     /** 安全更新：带旧状态校验，防止并发错误流转 */
     @Update("""

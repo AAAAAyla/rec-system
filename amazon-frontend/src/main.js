@@ -1,13 +1,27 @@
 import { createApp } from 'vue'
-import { createPinia } from 'pinia' // 导入 Pinia
+import { createPinia } from 'pinia'
 import App from './App.vue'
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import axios from 'axios'
-import router from './router' // 导入路由配置
+import router from './router'
+import { useUserStore } from './store/userStore'
 
-// 3. 配置 Axios 拦截器
+const app = createApp(App)
+const pinia = createPinia()
+
+// 注册所有图标
+for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+    app.component(key, component)
+}
+
+// 必须先激活 Pinia，interceptor 内才能调用 useUserStore()
+app.use(pinia)
+app.use(ElementPlus)
+app.use(router)
+
+// 请求拦截器：自动附加 token
 axios.interceptors.request.use(config => {
     const token = localStorage.getItem('token')
     if (token) {
@@ -16,24 +30,14 @@ axios.interceptors.request.use(config => {
     return config
 })
 
+// 响应拦截器：401 时同时清 Pinia store + localStorage，再跳登录
 axios.interceptors.response.use(res => res, error => {
     if (error.response && error.response.status === 401) {
-        localStorage.removeItem('token')
+        const userStore = useUserStore()
+        userStore.logout()          // 同时清 Pinia 内存状态和 localStorage
         router.push('/login')
     }
     return Promise.reject(error)
 })
-
-// 4. 创建并挂载应用
-const app = createApp(App)
-
-// 注册所有图标
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-    app.component(key, component)
-}
-
-app.use(createPinia()) // 激活 Pinia
-app.use(ElementPlus)
-app.use(router)
 
 app.mount('#app')

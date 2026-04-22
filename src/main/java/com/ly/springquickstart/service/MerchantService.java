@@ -6,6 +6,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Map;
+
 @Service
 public class MerchantService {
 
@@ -23,11 +26,9 @@ public class MerchantService {
         merchantMapper.insert(merchant);
     }
 
-    /** 获取当前商家信息 */
+    /** 获取当前商家信息（未申请则返回 null） */
     public Merchant getMyInfo(Long userId) {
-        Merchant m = merchantMapper.findByUserId(userId);
-        if (m == null) throw new RuntimeException("商家信息不存在");
-        return m;
+        return merchantMapper.findByUserId(userId);
     }
 
     /** 更新店铺信息 */
@@ -48,6 +49,14 @@ public class MerchantService {
             // 通过审核：升级 users.role 为商家
             merchantMapper.grantMerchantRole(m.getUserId());
         }
+    }
+
+    /** 管理员查看商家列表（按状态过滤） */
+    public Map<String, Object> listByStatus(int status, int pageNum, int pageSize) {
+        int offset = (pageNum - 1) * pageSize;
+        List<Merchant> rows = merchantMapper.findByStatus(status, offset, pageSize);
+        int total = merchantMapper.countByStatus(status);
+        return Map.of("rows", rows, "total", total);
     }
 
     /** 根据 userId 获取 merchantId（controller 常用） */

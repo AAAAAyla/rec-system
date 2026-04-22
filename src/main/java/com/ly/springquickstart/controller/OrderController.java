@@ -86,6 +86,12 @@ public class OrderController {
         return Result.success();
     }
 
+    /** 买家查询物流详情 */
+    @GetMapping("/{id}/logistics")
+    public Result logistics(@PathVariable Long id) {
+        return Result.success(orderService.getLogistics(uid(), id));
+    }
+
     /** 申请退款 */
     @PostMapping("/{id}/refund")
     public Result refund(@PathVariable Long id) {
@@ -113,6 +119,17 @@ public class OrderController {
         Long merchantId = merchantService.getMerchantIdByUser(uid());
         orderService.ship(merchantId, id, body.get("expressCompany"), body.get("trackingNo"));
         return Result.success();
+    }
+
+    /**
+     * 商家追加物流节点
+     * body: { "location": "北京分拣中心", "description": "包裹已到达北京分拣中心" }
+     */
+    @PostMapping("/{id}/track")
+    public Result addTrack(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        Long merchantId = merchantService.getMerchantIdByUser(uid());
+        orderService.addTrack(merchantId, id, body.get("location"), body.get("description"));
+        return Result.success("物流节点已添加");
     }
 
     /** 商家同意退款 */
