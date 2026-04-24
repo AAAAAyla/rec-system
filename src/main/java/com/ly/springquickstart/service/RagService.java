@@ -193,7 +193,7 @@ public class RagService {
                 List<Map<String, Object>> coupons = fetchAvailableCoupons();
                 if (coupons.isEmpty()) {
                     combinedContext = "【优惠券查询结果】：当前没有任何可用优惠券。";
-                    intentHint = "用户询问优惠券/打折信息。数据库查询结果是：当前没有可用优惠券。你必须如实告知用户"目前没有可用的优惠券"，不要编造或推荐不存在的优惠活动。可以推荐一些高性价比商品作为替代。";
+                    intentHint = "用户询问优惠券/打折信息。数据库查询结果是：当前没有可用优惠券。你必须如实告知用户[目前没有可用的优惠券]，不要编造或推荐不存在的优惠活动。可以推荐一些高性价比商品作为替代。";
                 } else {
                     StringBuilder sb = new StringBuilder("【当前可用优惠券】：\n");
                     for (Map<String, Object> c : coupons) {

@@ -70,7 +70,7 @@ public class ReviewService {
         List<Review> rows  = reviewMapper.findByItem(itemId, offset, pageSize);
         int total          = reviewMapper.countByItem(itemId);
         Double avgScore    = reviewMapper.avgScore(itemId);
-        return Map.of("rows", rows, "total", total, "avgScore", avgScore);
+        return Map.of("rows", rows, "total", total, "avgScore", avgScore != null ? avgScore : 0.0);
     }
 
     /** 查询当前用户的所有评价 */

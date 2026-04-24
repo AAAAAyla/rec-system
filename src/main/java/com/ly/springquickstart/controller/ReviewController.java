@@ -30,11 +30,15 @@ public class ReviewController {
      */
     @PostMapping
     public Result submit(@RequestBody Map<String, Object> body) {
-        Long orderId = Long.parseLong(body.get("orderId").toString());
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> reviews = (List<Map<String, Object>>) body.get("reviews");
-        reviewService.submitReviews(uid(), orderId, reviews);
-        return Result.success("评价成功");
+        try {
+            Long orderId = Long.parseLong(body.get("orderId").toString());
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> reviews = (List<Map<String, Object>>) body.get("reviews");
+            reviewService.submitReviews(uid(), orderId, reviews);
+            return Result.success("评价成功");
+        } catch (RuntimeException e) {
+            return Result.error(e.getMessage());
+        }
     }
 
     /**
