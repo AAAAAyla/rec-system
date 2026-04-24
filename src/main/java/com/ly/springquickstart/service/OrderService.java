@@ -23,6 +23,7 @@ public class OrderService {
     @Autowired private ShipmentMapper   shipmentMapper;
     @Autowired private StringRedisTemplate redisTemplate;
     @Autowired private ObjectMapper     objectMapper;
+    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     // Redis key 前缀：未付款订单超时取消
     private static final String ORDER_EXPIRE_KEY = "order:expire:";
@@ -248,6 +249,18 @@ public class OrderService {
         track.setDescription("商家已发货，等待揽收");
         track.setTrackTime(LocalDateTime.now());
         shipmentMapper.insertTrack(track);
+
+        // 通知买家
+        try {
+            String company = expressCompany != null ? expressCompany : "快递";
+            String trackNo = trackingNo != null ? trackingNo : "";
+            jdbcTemplate.update(
+                    "INSERT INTO notifications(user_id, title, content, type) VALUES(?,?,?,?)",
+                    order.getUserId(),
+                    "订单已发货",
+                    "您的订单已由" + company + "发出，运单号：" + trackNo + "，请注意查收！",
+                    "shipping");
+        } catch (Exception ignored) {}
     }
 
     // ── 物流追踪 ──────────────────────────────────────

@@ -13,6 +13,13 @@ export const useUserStore = defineStore('user', () => {
         localStorage.setItem('user', JSON.stringify(u))
     }
 
+    function updateUser(partial) {
+        if (user.value) {
+            user.value = { ...user.value, ...partial }
+            localStorage.setItem('user', JSON.stringify(user.value))
+        }
+    }
+
     function logout() {
         token.value = ''
         user.value  = null
@@ -21,7 +28,8 @@ export const useUserStore = defineStore('user', () => {
     }
 
     const isMerchant = computed(() => user.value?.role === 1)
-    const isLoggedIn  = computed(() => !!token.value)
+    const isAdmin    = computed(() => user.value?.role === 2)
+    const isLoggedIn = computed(() => !!token.value)
 
-    return { token, user, setLogin, logout, isMerchant, isLoggedIn }
+    return { token, user, setLogin, updateUser, logout, isMerchant, isAdmin, isLoggedIn }
 })

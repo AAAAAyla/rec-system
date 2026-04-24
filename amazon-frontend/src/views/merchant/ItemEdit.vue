@@ -7,7 +7,13 @@
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
 
         <el-form-item label="商品名称" prop="title">
-          <el-input v-model="form.title" placeholder="请输入商品名称" maxlength="100" show-word-limit />
+          <el-input v-model="form.title" placeholder="请输入商品名称" maxlength="100" show-word-limit>
+            <template #append>
+              <el-button @click="autoClassify" :loading="classifying" type="primary" plain>
+                AI 识别分类
+              </el-button>
+            </template>
+          </el-input>
         </el-form-item>
 
         <el-form-item label="商品分类" prop="categoryId">
@@ -18,6 +24,7 @@
               placeholder="请选择分类"
               style="width:300px"
           />
+          <span v-if="aiCatHint" style="margin-left:8px;color:#67c23a;font-size:12px">{{ aiCatHint }}</span>
         </el-form-item>
 
         <el-form-item label="主图URL" prop="imageUrl">
@@ -89,15 +96,19 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import axios from 'axios'
 import { publishItem, updateItem, getItemDetail } from '../../api/item'
 import { getCategoryTree } from '../../api/category'
 
 const route = useRoute()
 const router = useRouter()
+const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
 
 const isEdit  = computed(() => !!route.params.id)
 const formRef = ref()
 const submitting = ref(false)
+const classifying = ref(false)
+const aiCatHint = ref('')
 
 const form = ref({
   title: '',
@@ -120,13 +131,50 @@ const addSku = () => {
   skus.value.push({ specJson: '', price: 0.01, stock: 0 })
 }
 
+const autoClassify = async () => {
+  if (!form.value.title?.trim()) {
+    ElMessage.warning('请先输入商品名称')
+    return
+  }
+  classifying.value = true
+  aiCatHint.value = ''
+  try {
+    const { data: res } = await axios.post(`${BASE}/categories/auto-classify`,
+        { title: form.value.title },
+        { headers: { Authorization: localStorage.getItem('token') } })
+    if (res.code === 1 && res.data?.categoryId) {
+      form.value.categoryId = res.data.categoryId
+      const name = findCatName(res.data.categoryId, categoryTree.value)
+      aiCatHint.value = name ? `AI 推荐：${name}` : 'AI 已选择分类'
+      ElMessage.success('AI 已自动识别分类')
+    } else {
+      ElMessage.warning(res.msg || '无法自动识别，请手动选择')
+    }
+  } catch {
+    ElMessage.error('AI 分类识别失败')
+  } finally {
+    classifying.value = false
+  }
+}
+
+const findCatName = (id, tree) => {
+  for (const node of tree) {
+    if (node.id === id) return node.name
+    if (node.children) {
+      const found = findCatName(id, node.children)
+      if (found) return found
+    }
+  }
+  return null
+}
+
 const submit = async () => {
   await formRef.value.validate()
   submitting.value = true
   try {
     const payload = { item: form.value, skus: skus.value }
     const { data: res } = isEdit.value
-        ? await updateItem(route.params.id, form.value)
+        ? await updateItem(route.params.id, payload)
         : await publishItem(payload)
 
     if (res.code === 1) {

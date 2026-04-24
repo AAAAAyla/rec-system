@@ -187,11 +187,12 @@ watch(() => route.query.kw, () => {
 })
 
 onMounted(async () => {
-  // 加载分类树
   const { data: res } = await getCategoryTree()
   if (res.code === 1) categoryTree.value = res.data
 
-  // 执行初始搜索
+  if (route.query.categoryId) {
+    filter.value.categoryId = parseInt(route.query.categoryId)
+  }
   doSearch()
 })
 </script>

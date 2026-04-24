@@ -115,13 +115,24 @@ public class ItemController {
         return Result.success(itemId);
     }
 
-    /** 编辑商品 */
+    /** 编辑商品（含 SKU） */
     @PutMapping("/{id}")
-    public Result update(@PathVariable Long id, @RequestBody Item item) {
+    public Result update(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         Long merchantId = getMerchantId();
+        Item item = parseItem(body);
+        if (item.getTitle() == null) {
+            item = new Item();
+            if (body.get("title") != null) item.setTitle((String) body.get("title"));
+            if (body.get("categoryId") != null) item.setCategoryId(Integer.parseInt(body.get("categoryId").toString()));
+            if (body.get("description") != null) item.setDescription((String) body.get("description"));
+            if (body.get("imageUrl") != null) item.setImageUrl((String) body.get("imageUrl"));
+            if (body.get("price") != null) item.setPrice(new java.math.BigDecimal(body.get("price").toString()));
+        }
         item.setId(id);
         item.setMerchantId(merchantId);
-        itemService.update(merchantId, item);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> skuMaps = (List<Map<String, Object>>) body.get("skus");
+        itemService.updateWithSkus(merchantId, item, skuMaps);
         return Result.success();
     }
 

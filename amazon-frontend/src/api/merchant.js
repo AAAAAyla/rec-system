@@ -1,7 +1,7 @@
 // amazon-frontend/src/api/merchant.js
 import axios from 'axios'
 
-const BASE = 'http://localhost:8080'
+const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
 
 // ── 商家入驻 ─────────────────────────────────────────
 

@@ -24,44 +24,42 @@
         </el-badge>
 
         <template v-if="userStore.token">
-          <!-- 我的订单 -->
           <el-button text style="color:#f0c14b" @click="router.push('/orders')">我的订单</el-button>
+          <el-button text style="color:#ccc" @click="router.push('/favorites')">收藏</el-button>
+          <el-button text style="color:#ccc" @click="router.push('/im')">消息</el-button>
 
-          <!-- 管理员入口 -->
+          <el-badge :value="unreadCount" :hidden="unreadCount === 0" :offset="[-5, 5]">
+            <el-button circle :icon="Bell" size="small" @click="router.push('/notifications')" />
+          </el-badge>
+
           <el-button
               v-if="userStore.user?.role === 2"
-              type="danger"
-              plain
-              size="small"
-              @click="router.push('/admin/merchants')"
-          >
-            管理后台
-          </el-button>
+              type="danger" plain size="small"
+              @click="router.push('/admin')"
+          >管理后台</el-button>
 
-          <!-- 商家后台 -->
           <el-button
-              v-if="userStore.user?.role === 1"
-              type="primary"
-              plain
-              size="small"
+              v-if="userStore.user?.role === 1 || userStore.user?.role === 2"
+              type="primary" plain size="small"
               @click="router.push('/merchant')"
-          >
-            商家后台
-          </el-button>
+          >商家后台</el-button>
 
-          <!-- 申请入驻（普通买家） -->
           <el-button
               v-if="userStore.user?.role === 0 || userStore.user?.role == null"
-              type="success"
-              plain
-              size="small"
+              type="success" plain size="small"
               @click="router.push('/merchant-apply')"
-          >
-            申请入驻
-          </el-button>
+          >申请入驻</el-button>
 
-          <span class="username">{{ userStore.user?.username }}</span>
-          <el-button text @click="logout">退出</el-button>
+          <el-dropdown trigger="click">
+            <span class="username" style="cursor:pointer">{{ userStore.user?.username }} ▾</span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="router.push('/profile')">个人中心</el-dropdown-item>
+                <el-dropdown-item @click="router.push('/addresses')">地址管理</el-dropdown-item>
+                <el-dropdown-item divided @click="logout">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
 
         <template v-else>
@@ -73,21 +71,38 @@
     <el-main class="main-content">
       <router-view />
     </el-main>
+
+    <AiAssistant />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Goods, ShoppingCart, Search } from '@element-plus/icons-vue'
+import { Goods, ShoppingCart, Search, Bell } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useCartStore } from './store/cartStore'
 import { useUserStore } from './store/userStore'
+import AiAssistant from './components/AiAssistant.vue'
+import axios from 'axios'
 
 const router = useRouter()
 const cartStore = useCartStore()
 const userStore = useUserStore()
 const searchKw = ref('')
+const unreadCount = ref(0)
+const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
+
+const loadUnread = async () => {
+  if (!userStore.token) return
+  try {
+    const { data: res } = await axios.get(`${BASE}/notifications/unread-count`)
+    if (res.code === 1) unreadCount.value = res.data || 0
+  } catch {}
+}
+
+onMounted(() => { loadUnread(); setInterval(loadUnread, 30000) })
+watch(() => userStore.token, loadUnread)
 
 const doSearch = () => {
   if (!searchKw.value.trim()) return

@@ -69,6 +69,12 @@
           <el-button type="danger" size="large" @click="handleBuyNow">
             立即购买
           </el-button>
+          <el-button :type="isFavorited ? 'warning' : 'default'" size="large" @click="toggleFav">
+            {{ isFavorited ? '已收藏' : '收藏' }}
+          </el-button>
+          <el-button type="info" size="large" plain @click="contactMerchant">
+            联系客服
+          </el-button>
         </div>
       </el-col>
     </el-row>
@@ -98,8 +104,10 @@ import { ShoppingCart } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
 import { useCartStore } from '../../store/cartStore.js'
+import { checkFavorite, addFavorite, removeFavorite } from '../../api/favorite'
+import { createSession } from '../../api/im'
 
-const BASE = 'http://localhost:8080'
+const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
 
 const route     = useRoute()
 const router    = useRouter()
@@ -194,9 +202,41 @@ const handleBuyNow = () => {
   router.push('/cart')
 }
 
+const isFavorited = ref(false)
+
+const loadFavStatus = async () => {
+  try {
+    const { data: res } = await checkFavorite(route.params.id)
+    if (res.code === 1) isFavorited.value = res.data
+  } catch {}
+}
+
+const toggleFav = async () => {
+  try {
+    if (isFavorited.value) {
+      await removeFavorite(route.params.id)
+      isFavorited.value = false
+      ElMessage.success('已取消收藏')
+    } else {
+      await addFavorite(route.params.id)
+      isFavorited.value = true
+      ElMessage.success('已收藏')
+    }
+  } catch { ElMessage.error('操作失败') }
+}
+
+const contactMerchant = async () => {
+  if (!item.value?.merchantId) return ElMessage.warning('商家信息不可用')
+  try {
+    const { data: res } = await createSession(item.value.merchantId)
+    if (res.code === 1) router.push('/im')
+  } catch { ElMessage.error('创建会话失败') }
+}
+
 onMounted(() => {
   loadItem()
   loadReviews()
+  if (localStorage.getItem('token')) loadFavStatus()
 })
 </script>
 

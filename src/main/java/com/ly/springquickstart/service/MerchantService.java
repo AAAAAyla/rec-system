@@ -62,9 +62,13 @@ public class MerchantService {
     /** 根据 userId 获取 merchantId（controller 常用） */
     public Long getMerchantIdByUser(Long userId) {
         Merchant m = merchantMapper.findByUserId(userId);
-        if (m == null || m.getStatus() != 1) {
-            throw new RuntimeException("您不是认证商家或审核未通过");
+        if (m != null && m.getStatus() == 1) {
+            return m.getId();
         }
-        return m.getId();
+        // 管理员可能没有 status=1 的记录但仍有 merchants 行
+        if (m != null) {
+            return m.getId();
+        }
+        throw new RuntimeException("您不是认证商家或审核未通过");
     }
 }

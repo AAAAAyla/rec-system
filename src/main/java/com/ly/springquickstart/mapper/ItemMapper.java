@@ -17,7 +17,9 @@ public interface ItemMapper {
         SELECT * FROM items
         WHERE status = 1
           AND (#{kw} IS NULL OR title LIKE CONCAT('%',#{kw},'%'))
-          AND (#{categoryId} IS NULL OR category_id = #{categoryId})
+          AND (#{categoryId} IS NULL
+               OR category_id = #{categoryId}
+               OR category_id IN (SELECT id FROM categories WHERE parent_id = #{categoryId}))
         ORDER BY
           CASE #{sort}
             WHEN 'price_asc'  THEN price  END ASC,
@@ -38,7 +40,9 @@ public interface ItemMapper {
         SELECT COUNT(*) FROM items
         WHERE status = 1
           AND (#{kw} IS NULL OR title LIKE CONCAT('%',#{kw},'%'))
-          AND (#{categoryId} IS NULL OR category_id = #{categoryId})
+          AND (#{categoryId} IS NULL
+               OR category_id = #{categoryId}
+               OR category_id IN (SELECT id FROM categories WHERE parent_id = #{categoryId}))
         """)
     int searchCount(@Param("kw") String kw, @Param("categoryId") Integer categoryId);
 
@@ -98,6 +102,9 @@ public interface ItemMapper {
 
     @Update("UPDATE item_skus SET stock = #{stock}, price = #{price} WHERE id = #{id}")
     void updateSku(ItemSku sku);
+
+    @Delete("DELETE FROM item_skus WHERE item_id = #{itemId}")
+    void deleteSkusByItemId(Long itemId);
 
     // ── 图片 ───────────────────────────────────────────
     @Insert("INSERT INTO item_images(item_id, url, sort, type) VALUES(#{itemId}, #{url}, #{sort}, #{type})")

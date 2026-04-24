@@ -78,7 +78,25 @@ public class ItemService {
 
     /** 编辑商品基本信息 */
     public void update(Long merchantId, Item item) {
-        itemMapper.update(item);   // SQL 里已有 AND merchant_id=#{merchantId} 防越权
+        itemMapper.update(item);
+    }
+
+    /** 编辑商品 + SKU */
+    @Transactional
+    public void updateWithSkus(Long merchantId, Item item, List<Map<String, Object>> skuMaps) {
+        itemMapper.update(item);
+        if (skuMaps != null) {
+            itemMapper.deleteSkusByItemId(item.getId());
+            for (Map<String, Object> m : skuMaps) {
+                ItemSku sku = new ItemSku();
+                sku.setItemId(item.getId());
+                sku.setSpecJson(m.get("specJson") != null ? m.get("specJson").toString() : "");
+                sku.setPrice(m.get("price") != null ? new java.math.BigDecimal(m.get("price").toString()) : java.math.BigDecimal.ZERO);
+                sku.setStock(m.get("stock") != null ? Integer.parseInt(m.get("stock").toString()) : 0);
+                sku.setImageUrl(m.get("imageUrl") != null ? m.get("imageUrl").toString() : null);
+                itemMapper.insertSku(sku);
+            }
+        }
     }
 
     /** 上架 / 下架 */

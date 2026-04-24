@@ -3,6 +3,7 @@ package com.ly.springquickstart.controller;
 import com.ly.springquickstart.pojo.Address;
 import com.ly.springquickstart.pojo.Result;
 import com.ly.springquickstart.service.AddressService;
+import com.ly.springquickstart.service.CartService;
 import com.ly.springquickstart.service.MerchantService;
 import com.ly.springquickstart.service.OrderService;
 import com.ly.springquickstart.utils.ThreadLocalUtil;
@@ -19,6 +20,7 @@ public class OrderController {
     @Autowired private OrderService   orderService;
     @Autowired private AddressService addressService;
     @Autowired private MerchantService merchantService;
+    @Autowired private CartService    cartService;
 
     // ── 买家接口 ───────────────────────────────────────
 
@@ -46,6 +48,7 @@ public class OrderController {
         }
 
         String orderNo = orderService.createOrder(userId, addressId, cartItems, remark, address);
+        cartService.removeChecked(userId);
         return Result.success(Map.of("orderNo", orderNo));
     }
 

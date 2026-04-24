@@ -167,7 +167,8 @@ const handleLogin = async (formEl) => {
     if (valid) {
       loading.value = true
       try {
-        const res = await axios.post('http://localhost:8080/login', loginForm)
+        const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
+        const res = await axios.post(`${BASE}/login`, loginForm)
         if (res.data.code === 1) {
           const { token, userInfo } = res.data.data
           userStore.setLogin(token, userInfo)
@@ -192,7 +193,8 @@ const handleRegister = async (formEl) => {
     if (valid) {
       loading.value = true
       try {
-        const res = await axios.post('http://localhost:8080/register', {
+        const BASE2 = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
+        const res = await axios.post(`${BASE2}/register`, {
           username: regForm.username,
           password: regForm.password
         })

@@ -1,5 +1,6 @@
 package com.ly.springquickstart.controller;
 
+import com.ly.springquickstart.annotation.RoleRequired;
 import com.ly.springquickstart.pojo.Merchant;
 import com.ly.springquickstart.pojo.Result;
 import com.ly.springquickstart.service.MerchantService;
@@ -44,6 +45,7 @@ public class MerchantController {
      * status: 0=待审核 1=正常 2=拒绝 3=封禁
      */
     @GetMapping("/list")
+    @RoleRequired({2})
     public Result list(@RequestParam(defaultValue = "0") int status,
                        @RequestParam(defaultValue = "1")  int pageNum,
                        @RequestParam(defaultValue = "10") int pageSize) {
@@ -55,6 +57,7 @@ public class MerchantController {
      * body: { "status": 1, "rejectReason": "" }
      */
     @PutMapping("/audit/{merchantId}")
+    @RoleRequired({2})
     public Result audit(@PathVariable Long merchantId,
                         @RequestBody Map<String, Object> body) {
         int status = (int) body.get("status");

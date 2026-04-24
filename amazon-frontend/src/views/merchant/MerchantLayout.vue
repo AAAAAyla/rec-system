@@ -35,6 +35,21 @@
           <el-icon><Setting /></el-icon>
           <span>店铺设置</span>
         </el-menu-item>
+
+        <el-menu-item index="/merchant/warehouses">
+          <el-icon><OfficeBuilding /></el-icon>
+          <span>发货地管理</span>
+        </el-menu-item>
+
+        <el-menu-item index="/merchant/coupons">
+          <el-icon><Ticket /></el-icon>
+          <span>优惠券管理</span>
+        </el-menu-item>
+
+        <el-menu-item index="/merchant/im">
+          <el-icon><ChatDotSquare /></el-icon>
+          <span>客服消息</span>
+        </el-menu-item>
       </el-menu>
 
       <!-- 底部：返回买家端 -->
@@ -65,7 +80,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Shop, DataLine, Goods, List, Setting, ArrowLeft } from '@element-plus/icons-vue'
+import { Shop, DataLine, Goods, List, Setting, ArrowLeft, OfficeBuilding, Ticket, ChatDotSquare } from '@element-plus/icons-vue'
 import { useUserStore } from '../../store/userStore'
 import { getMyMerchantInfo } from '../../api/merchant'
 
