@@ -136,12 +136,3 @@ npm run dev
 ## 安全机制（概要）
 
 JWT、`Authorization` 头、BCrypt 密码、`@RoleRequired` + 角色拦截、Redis 限流、登录白名单。
-
-## 说明：根目录 README 为何会变成 Vue 模板？
-
-若本文件只剩「Vue 3 + Vite」几行，通常是：
-
-- 在仓库根目录误用 `npm create vite` 覆盖了 `README.md`，或
-- 把 `amazon-frontend` 里 Vite 自带的 README 复制到了项目根目录。
-
-本仓库应以**本文件（AmazonRec 全栈说明）**为准；前端子项目若需单独说明，可放在 `amazon-frontend/README.md`。
