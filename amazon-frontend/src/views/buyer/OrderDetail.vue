@@ -67,16 +67,63 @@
           <div class="pay-total">实付金额：<b>¥{{ order.payAmount }}</b></div>
         </div>
       </el-card>
+
+      <!-- 评价区 (已完成订单) -->
+      <el-card v-if="order.status === 3" class="section">
+        <template #header>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <b>商品评价</b>
+            <el-tag v-if="allReviewed" type="success" size="small">已全部评价</el-tag>
+          </div>
+        </template>
+
+        <div v-if="allReviewed" class="reviewed-hint">
+          您已完成所有商品的评价，感谢您的反馈！
+        </div>
+
+        <div v-else>
+          <div v-for="item in unreviewedItems" :key="item.id" class="review-form-item">
+            <div class="review-form-header">
+              <img :src="item.imageUrl || 'https://via.placeholder.com/40'" class="review-thumb" />
+              <span class="review-item-title">{{ item.title }}</span>
+            </div>
+            <div class="review-form-body">
+              <div class="review-field">
+                <span class="review-label">评分：</span>
+                <el-rate v-model="reviewForms[item.id].score" />
+              </div>
+              <div class="review-field">
+                <span class="review-label">评价：</span>
+                <el-input
+                    v-model="reviewForms[item.id].content"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="说说您对商品的看法..."
+                    maxlength="500"
+                    show-word-limit
+                />
+              </div>
+            </div>
+          </div>
+          <div style="text-align:right;margin-top:16px">
+            <el-button type="primary" :loading="reviewSubmitting" @click="submitReviews">
+              提交评价
+            </el-button>
+          </div>
+        </div>
+      </el-card>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import axios from 'axios'
 import { getOrderDetail, mockPay, cancelOrder, confirmReceive } from '../../api/order'
 
+const BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8080'
 const route  = useRoute()
 const router = useRouter()
 const order   = ref(null)
@@ -99,12 +146,100 @@ const formatSpec = (s) => {
   catch { return s }
 }
 
+// ── 评价相关 ──
+const reviewForms = reactive({})
+const reviewedIds = ref(new Set())
+const reviewSubmitting = ref(false)
+
+const unreviewedItems = computed(() => {
+  if (!order.value?.orderItems) return []
+  return order.value.orderItems.filter(it => !reviewedIds.value.has(it.id))
+})
+
+const allReviewed = computed(() => {
+  if (!order.value?.orderItems?.length) return false
+  return unreviewedItems.value.length === 0
+})
+
+const initReviewForms = () => {
+  if (!order.value?.orderItems) return
+  for (const item of order.value.orderItems) {
+    if (!reviewForms[item.id]) {
+      reviewForms[item.id] = { score: 5, content: '' }
+    }
+  }
+}
+
+const loadReviewedStatus = async () => {
+  if (!order.value?.orderItems) return
+  try {
+    const { data: res } = await axios.get(`${BASE}/reviews/me`, {
+      headers: { Authorization: localStorage.getItem('token') }
+    })
+    if (res.code === 1 && Array.isArray(res.data)) {
+      const myReviewedOrderItemIds = new Set(res.data.map(r => r.orderItemId))
+      for (const item of order.value.orderItems) {
+        if (myReviewedOrderItemIds.has(item.id)) {
+          reviewedIds.value.add(item.id)
+        }
+      }
+    }
+  } catch {}
+}
+
+const submitReviews = async () => {
+  const reviews = unreviewedItems.value.map(item => ({
+    orderItemId: item.id,
+    score: reviewForms[item.id]?.score || 5,
+    content: reviewForms[item.id]?.content || '',
+  }))
+
+  if (reviews.length === 0) {
+    ElMessage.warning('没有需要评价的商品')
+    return
+  }
+
+  const emptyReview = reviews.find(r => !r.content?.trim())
+  if (emptyReview) {
+    ElMessage.warning('请填写评价内容')
+    return
+  }
+
+  reviewSubmitting.value = true
+  try {
+    const { data: res } = await axios.post(`${BASE}/reviews`, {
+      orderId: order.value.id,
+      reviews
+    }, { headers: { Authorization: localStorage.getItem('token') } })
+
+    if (res.code === 1) {
+      ElMessage.success('评价提交成功！')
+      for (const item of unreviewedItems.value) {
+        reviewedIds.value.add(item.id)
+      }
+    } else {
+      ElMessage.error(res.msg || '评价失败')
+    }
+  } catch (e) {
+    ElMessage.error('提交失败：' + (e.response?.data?.msg || e.message))
+  } finally {
+    reviewSubmitting.value = false
+  }
+}
+
 const load = async () => {
   loading.value = true
   try {
     const { data: res } = await getOrderDetail(route.params.id)
-    if (res.code === 1) order.value = res.data
-    else ElMessage.error(res.msg)
+    if (res.code === 1) {
+      order.value = res.data
+      initReviewForms()
+      if (res.data.status === 3) {
+        await loadReviewedStatus()
+      }
+    } else {
+      ElMessage.error(res.msg)
+    }
   } finally { loading.value = false }
 }
 
@@ -151,4 +286,15 @@ onMounted(load)
 .item-subtotal { width: 90px; text-align: right; color: #f56c6c; font-weight: bold; }
 .order-summary { margin-top: 16px; text-align: right; font-size: 14px; color: #666; line-height: 2; }
 .pay-total b { color: #f56c6c; font-size: 20px; }
+
+.reviewed-hint { text-align: center; color: #67c23a; padding: 20px 0; font-size: 14px; }
+.review-form-item { padding: 16px 0; border-bottom: 1px solid #f5f5f5; }
+.review-form-item:last-child { border-bottom: none; }
+.review-form-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.review-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid #eee; }
+.review-item-title { font-size: 14px; font-weight: 600; color: #303133; }
+.review-form-body { padding-left: 50px; }
+.review-field { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+.review-label { font-size: 13px; color: #606266; flex-shrink: 0; line-height: 32px; width: 48px; }
+.review-field .el-textarea { flex: 1; }
 </style>

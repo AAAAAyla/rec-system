@@ -37,6 +37,7 @@
             <el-button v-if="order.status === 0" size="small" @click="doCancel(order)">取消订单</el-button>
             <el-button v-if="order.status === 2" type="success" size="small" @click="doConfirm(order)">确认收货</el-button>
             <el-button v-if="order.status === 1 || order.status === 2" size="small" @click="doRefund(order)">申请退款</el-button>
+            <el-button v-if="order.status === 3" type="warning" size="small" @click="router.push(`/orders/${order.id}`)">去评价</el-button>
             <el-button size="small" @click="router.push(`/orders/${order.id}`)">查看详情</el-button>
           </div>
         </div>

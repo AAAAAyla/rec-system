@@ -83,15 +83,26 @@
 
     <!-- 评价区 -->
     <el-card v-if="item" class="review-card">
-      <template #header><b>商品评价</b></template>
-      <el-empty v-if="!reviews.length" description="暂无评价" :image-size="80" />
+      <template #header>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <b>商品评价 ({{ reviews.length }})</b>
+          <span v-if="avgScore > 0" style="color:#e6a23c;font-size:14px">
+            平均 {{ avgScore.toFixed(1) }} 分
+          </span>
+        </div>
+      </template>
+      <el-empty v-if="!reviews.length" description="暂无评价，购买后可评价" :image-size="80" />
       <div v-for="r in reviews" :key="r.id" class="review-item">
         <div class="review-header">
+          <div class="reviewer-avatar">{{ (r.username || '匿')[0] }}</div>
           <b>{{ r.username || '匿名用户' }}</b>
           <el-rate v-model="r.score" disabled size="small" />
-          <span class="review-time">{{ r.createTime }}</span>
+          <span class="review-time">{{ formatReviewTime(r.createTime || r.create_time) }}</span>
         </div>
         <div class="review-content">{{ r.content }}</div>
+      </div>
+      <div v-if="reviews.length >= 5" style="text-align:center;margin-top:12px">
+        <el-button text type="primary" size="small">查看更多评价</el-button>
       </div>
     </el-card>
   </div>
@@ -118,6 +129,7 @@ const loading     = ref(true)
 const buyCount    = ref(1)
 const selectedSku = ref(null)
 const reviews     = ref([])
+const avgScore    = ref(0)
 
 // 当前展示的图片：优先选中 SKU 图，其次商品主图
 const currentImage = computed(() =>
@@ -169,13 +181,24 @@ const loadItem = async () => {
   }
 }
 
+const formatReviewTime = (t) => {
+  if (!t) return ''
+  try {
+    const d = new Date(t)
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  } catch { return t }
+}
+
 // 加载评价（失败不影响主流程）
 const loadReviews = async () => {
   try {
     const { data: res } = await axios.get(`${BASE}/reviews/items/${route.params.id}`, {
       params: { pageNum: 1, pageSize: 5 }
     })
-    if (res.code === 1) reviews.value = res.data.rows || []
+    if (res.code === 1) {
+      reviews.value = res.data.rows || []
+      avgScore.value = res.data.avgScore || 0
+    }
   } catch { /* 静默 */ }
 }
 
@@ -262,5 +285,6 @@ onMounted(() => {
 .review-item:last-child { border-bottom: none; }
 .review-header { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
 .review-time { font-size: 12px; color: #bbb; margin-left: auto; }
-.review-content { font-size: 14px; color: #606266; padding-left: 4px; }
+.review-content { font-size: 14px; color: #606266; padding-left: 40px; }
+.reviewer-avatar { width: 28px; height: 28px; border-radius: 50%; background: #409eff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
 </style>
